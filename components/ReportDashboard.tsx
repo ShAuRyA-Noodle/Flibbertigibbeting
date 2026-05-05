@@ -288,10 +288,10 @@ function scoreColor(s: number) {
 
 function severityGradient(k: "low" | "medium" | "high" | "critical") {
   return {
-    low: "linear-gradient(90deg, var(--sev-low), #4cc985)",
-    medium: "linear-gradient(90deg, var(--sev-medium), #d6a627)",
+    low: "linear-gradient(90deg, var(--sev-low), #4dc78c)",
+    medium: "linear-gradient(90deg, var(--sev-medium), #ffb800)",
     high: "linear-gradient(90deg, var(--accent), var(--accent-2))",
-    critical: "linear-gradient(90deg, var(--sev-critical), #ff7a7a)",
+    critical: "linear-gradient(90deg, var(--sev-critical), var(--accent-3))",
   }[k];
 }
 

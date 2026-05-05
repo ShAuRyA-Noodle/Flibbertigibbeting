@@ -1,8 +1,8 @@
-# SOLARIS
+# SOLPOP
 
 > Photovoltaic intelligence for humans who own panels and don't want to climb on the roof to check them.
 
-Drop a photo of a solar panel. SOLARIS looks at it the way a 20-year inspector would, finds every crack, hotspot, smudge, and bird-mess, then writes you a report that tells you what's broken, how much money it's quietly costing you, and what to do about it, by Tuesday.
+Drop a photo of a solar panel. SOLPOP looks at it the way a 20-year inspector would, finds every crack, hotspot, smudge, and bird-mess, then writes you a report that tells you what's broken, how much money it's quietly costing you, and what to do about it, by Tuesday.
 
 It works for one panel or twenty-four at once. It takes about a minute.
 
@@ -12,7 +12,7 @@ It works for one panel or twenty-four at once. It takes about a minute.
 
 Solar farms lose ~5–15% of their output every year to stuff that's visible from the ground: dust, micro-cracks, hotspots, leaves, the occasional pigeon. Diagnosing it usually means a thermal-imaging drone, a specialist, and a PDF that arrives a month later.
 
-SOLARIS skips that.
+SOLPOP skips that.
 
 A frontier vision model (Gemini) inspects each image against a 21-defect taxonomy, microcracks, snail-trails, PID, delamination, encapsulant yellowing, shading, soiling, the works, and emits structured JSON. A reasoning model (Llama 3.3 70B on Groq) then aggregates every finding into an executive O&M report: a fleet health score, severity heatmap, ranked risks, quantified energy loss in kWh/kW, and a 7/30/90-day action ladder.
 
@@ -68,7 +68,7 @@ The route handler runs on Node and streams **NDJSON** events (`start`, `progress
 solaris/
 ├── app/
 │   ├── layout.tsx          # fonts (Geist, Geist Mono, Instrument Serif), SmoothScroll mount
-│   ├── page.tsx            # root composition: Header → Hero → HowItWorks → SolarisApp → Footer
+│   ├── page.tsx            # root composition: Header → Hero → HowItWorks → SolpopApp → Footer
 │   ├── globals.css         # design system: tokens, severity palette, motion utils
 │   └── api/
 │       └── analyze/
@@ -82,14 +82,14 @@ solaris/
 │   ├── AnalysisCard.tsx        # per-panel result card (hover lift, click → sheet)
 │   ├── PanelReportSheet.tsx    # right-side full report drill-down (spring entry)
 │   ├── ReportDashboard.tsx     # bento exec dashboard: fleet score, severity, risks, recs, ledger
-│   ├── SolarisApp.tsx          # client state machine: queue, streaming, sheet routing
+│   ├── SolpopApp.tsx          # client state machine: queue, streaming, sheet routing
 │   ├── SmoothScroll.tsx        # Lenis instance + RAF + anchor-link hijack + ResizeObserver
 │   ├── CountUp.tsx             # animated number on enter-view (framer animate)
 │   └── Footer.tsx
 │
 ├── lib/
 │   ├── schema.ts           # Zod schemas for PanelAnalysis, SystemReport, FullAnalysis
-│   ├── prompts.ts          # SOLARIS-VISION + SOLARIS-ANALYST system prompts
+│   ├── prompts.ts          # SOLPOP-VISION + SOLPOP-ANALYST system prompts
 │   ├── gemini.ts           # vision client w/ JSON salvage + model fallback chain
 │   ├── groq.ts             # synthesis client, JSON mode, schema-validated
 │   └── utils.ts            # cn(), severity helpers, uid()
@@ -161,7 +161,7 @@ The current build is v1, vision inspection for stills. The roadmap is a lot bigg
 
 **10. Cost-of-replacement estimator.** Tie defect severity + panel type → ballpark $ to replace vs. clean vs. ignore. Asset owners think in dollars, not condition scores.
 
-**11. White-label mode.** Solar installers want to hand SOLARIS to their customers under their own brand. Tenanted logo + color override + custom domain.
+**11. White-label mode.** Solar installers want to hand SOLPOP to their customers under their own brand. Tenanted logo + color override + custom domain.
 
 **12. Self-host vision.** When the volume justifies it, swap Gemini for a fine-tuned open vision model (LLaVA-Next, Idefics-3) on dedicated GPU, eliminates per-call cost and lets us train on PV-specific defect data we accumulate.
 
@@ -171,9 +171,9 @@ That's the long roadmap. v1 is the foundation: prove that a two-model pipeline w
 
 ## A note on accuracy
 
-SOLARIS is decision-support, not a substitute for a licensed PV engineer. The model is good enough to triage, prioritize, and catch things humans miss in a quick visual sweep, but for warranty claims, replacement decisions, or anything safety-critical, the report should be reviewed by someone with a clipboard and a multimeter.
+SOLPOP is decision-support, not a substitute for a licensed PV engineer. The model is good enough to triage, prioritize, and catch things humans miss in a quick visual sweep, but for warranty claims, replacement decisions, or anything safety-critical, the report should be reviewed by someone with a clipboard and a multimeter.
 
-That's not a hedge. That's just where current vision models actually sit. The point of SOLARIS is to make the inspector's job 10× faster, not to replace them.
+That's not a hedge. That's just where current vision models actually sit. The point of SOLPOP is to make the inspector's job 10× faster, not to replace them.
 
 ---
 

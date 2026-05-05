@@ -40,9 +40,15 @@ export function Hero() {
       <div className="absolute inset-0 grid-bg opacity-40 pointer-events-none" />
       <motion.div
         style={{ y: orbY, scale: orbScale }}
-        className="absolute -top-32 right-[-10%] w-[640px] h-[640px] rounded-full blur-3xl opacity-45 pointer-events-none parallax-soft"
+        className="absolute -top-40 right-[-10%] w-[640px] h-[640px] rounded-full blur-3xl opacity-55 pointer-events-none parallax-soft"
       >
-        <div className="w-full h-full rounded-full" style={{ background: "radial-gradient(circle, rgba(255,122,26,0.45), transparent 60%)" }} />
+        <div className="w-full h-full rounded-full" style={{ background: "radial-gradient(circle, rgba(255,91,0,0.55), transparent 60%)" }} />
+      </motion.div>
+      <motion.div
+        style={{ y: orbY, scale: orbScale }}
+        className="absolute top-[20%] left-[-12%] w-[460px] h-[460px] rounded-full blur-3xl opacity-40 pointer-events-none parallax-soft"
+      >
+        <div className="w-full h-full rounded-full" style={{ background: "radial-gradient(circle, rgba(255,61,138,0.45), transparent 60%)" }} />
       </motion.div>
 
       <div className="relative max-w-[1400px] mx-auto px-6 md:px-10 pt-24 md:pt-36 pb-24 md:pb-36">
@@ -83,7 +89,7 @@ export function Hero() {
           transition={{ duration: 0.9, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
           className="mt-12 max-w-[760px] body-lg text-[1.25rem] md:text-[1.4rem] leading-[1.5]"
         >
-          SOLARIS ingests a single panel photo or an entire fleet upload, runs frontier vision
+          SOLPOP ingests a single panel photo or an entire fleet upload, runs frontier vision
           models against a 21-defect taxonomy, and synthesizes an executive O&amp;M report with
           quantified efficiency loss and prioritized actions, in under a minute.
         </motion.p>

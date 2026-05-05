@@ -10,7 +10,7 @@ import type { FullAnalysis, PanelAnalysis } from "@/lib/schema";
 
 type Phase = "idle" | "running" | "synthesizing" | "complete" | "error";
 
-export function SolarisApp() {
+export function SolpopApp() {
   const [files, setFiles] = useState<StagedFile[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [pending, setPending] = useState<Record<string, Pending>>({});
@@ -176,7 +176,7 @@ export function SolarisApp() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="card p-5 border-[rgba(255,61,61,0.4)]"
+              className="card p-5 border-[rgba(239,35,60,0.4)]"
             >
               <div className="severity-pill critical mb-2">Error</div>
               <p className="text-[var(--fg-dim)] text-[14px]">{topError}</p>

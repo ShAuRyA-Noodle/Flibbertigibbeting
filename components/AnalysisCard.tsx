@@ -70,12 +70,12 @@ export function AnalysisCard({
             </span>
           )}
           {pending.status === "done" && (
-            <span className="font-mono text-[10.5px] tracking-[0.18em] uppercase px-2.5 py-1 rounded-full text-[#bdf7d0] bg-[rgba(123,224,163,0.18)] backdrop-blur flex items-center gap-1.5">
+            <span className="font-mono text-[10.5px] tracking-[0.18em] uppercase px-2.5 py-1 rounded-full text-[#d5ffdf] bg-[rgba(128,237,153,0.18)] backdrop-blur flex items-center gap-1.5">
               <CheckCircle2 size={11} /> Complete
             </span>
           )}
           {pending.status === "failed" && (
-            <span className="font-mono text-[10.5px] tracking-[0.18em] uppercase px-2.5 py-1 rounded-full text-[#ffb1b1] bg-[rgba(255,61,61,0.20)] backdrop-blur flex items-center gap-1.5">
+            <span className="font-mono text-[10.5px] tracking-[0.18em] uppercase px-2.5 py-1 rounded-full text-[#ffb8c2] bg-[rgba(239,35,60,0.20)] backdrop-blur flex items-center gap-1.5">
               <AlertTriangle size={11} /> Failed
             </span>
           )}
@@ -159,7 +159,7 @@ export function AnalysisCard({
         )}
 
         {pending.status === "failed" && (
-          <p className="text-[14px] text-[#ffb1b1]">{pending.error ?? "Analysis failed."}</p>
+          <p className="text-[14px] text-[#ffb8c2]">{pending.error ?? "Analysis failed."}</p>
         )}
       </div>
     </motion.div>
@@ -184,9 +184,9 @@ function scoreColor(s: number) {
 
 export function severityBg(s: Severity) {
   return {
-    low: "rgba(123,224,163,0.12)",
-    medium: "rgba(245,197,66,0.12)",
-    high: "rgba(255,122,26,0.12)",
-    critical: "rgba(255,61,61,0.14)",
+    low: "rgba(128,237,153,0.12)",
+    medium: "rgba(255,195,0,0.12)",
+    high: "rgba(255,91,0,0.14)",
+    critical: "rgba(239,35,60,0.14)",
   }[s];
 }

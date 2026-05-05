@@ -47,7 +47,7 @@ export function HowItWorks() {
             transition={{ duration: 0.9, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
             className="max-w-md body-lg"
           >
-            SOLARIS pairs a vision model that sees what an inspector sees with a reasoning
+            SOLPOP pairs a vision model that sees what an inspector sees with a reasoning
             model that writes what an asset manager needs.
           </motion.p>
         </div>

@@ -33,10 +33,10 @@ export function Header() {
           </motion.div>
           <div className="leading-tight">
             <div className="font-mono text-[11.5px] tracking-[0.22em] text-[var(--fg-mute)]">
-              SOLARIS / V1.0
+              SOLPOP / V1.0
             </div>
             <div className="font-serif text-[19px] -mt-[2px] group-hover:text-[var(--accent-2)] transition-colors duration-300">
-              Photovoltaic Intelligence
+              panels, popping
             </div>
           </div>
         </a>

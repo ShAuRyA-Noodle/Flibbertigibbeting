@@ -171,7 +171,7 @@ function SheetBody({
         <Section title="Defect ledger" tick={`${panel.defects.length} finding${panel.defects.length === 1 ? "" : "s"}`}>
           {panel.defects.length === 0 ? (
             <div className="card p-7 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full grid place-items-center" style={{ background: "rgba(123,224,163,0.12)" }}>
+              <div className="w-12 h-12 rounded-full grid place-items-center" style={{ background: "rgba(128,237,153,0.12)" }}>
                 <CheckCircle2 size={20} className="text-[var(--sev-low)]" />
               </div>
               <div>
@@ -189,7 +189,7 @@ function SheetBody({
                   transition={{ duration: 0.4, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
                   className={cn(
                     "card-elev p-5 md:p-6 ring-defect",
-                    d.severity === "critical" && "border-[rgba(255,61,61,0.35)]"
+                    d.severity === "critical" && "border-[rgba(239,35,60,0.35)]"
                   )}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3 mb-3">

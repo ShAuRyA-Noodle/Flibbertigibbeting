@@ -13,9 +13,9 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "SOLARIS, AI Photovoltaic Inspection",
+  title: "SOLPOP, AI Photovoltaic Inspection",
   description:
-    "Upload single or batch solar panel imagery. SOLARIS runs multimodal AI analysis to surface defects, efficiency loss, and prioritized maintenance actions.",
+    "Upload single or batch solar panel imagery. SOLPOP runs multimodal AI analysis to surface defects, efficiency loss, and prioritized maintenance actions.",
 };
 
 export default function RootLayout({
