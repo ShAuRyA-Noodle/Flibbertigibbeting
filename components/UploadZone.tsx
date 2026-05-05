@@ -83,7 +83,7 @@ export function UploadZone({
           Drop panel imagery here
         </h3>
         <p className="mt-4 body-md max-w-lg mx-auto">
-          JPEG · PNG · WebP · HEIC up to 12&nbsp;MB. Single shot or full fleet — up to 24 panels per run.
+          JPEG · PNG · WebP · HEIC up to 12&nbsp;MB. Single shot or full fleet, up to 24 panels per run.
         </p>
 
         <div className="mt-7 flex items-center justify-center gap-3">

@@ -8,7 +8,7 @@ const STEPS = [
     icon: Camera,
     label: "01 · Capture",
     title: "Upload single or batch panel imagery",
-    body: "JPEG, PNG, WebP, or HEIC. Drag &amp; drop a single shot or up to 24 panels per inspection — drone, ground, or thermal RGB composites accepted.",
+    body: "JPEG, PNG, WebP, or HEIC. Drag &amp; drop a single shot or up to 24 panels per inspection, drone, ground, or thermal RGB composites accepted.",
   },
   {
     icon: Eye,

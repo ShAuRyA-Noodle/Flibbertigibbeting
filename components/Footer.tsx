@@ -9,7 +9,7 @@ export function Footer() {
           v1.0 · multimodal photovoltaic intelligence
         </div>
         <div className="font-mono text-[11px] text-[var(--fg-mute)]">
-          © {new Date().getFullYear()} · For inspection assistance — not a substitute for licensed engineering review.
+          © {new Date().getFullYear()} · For inspection assistance, not a substitute for licensed engineering review.
         </div>
       </div>
     </footer>

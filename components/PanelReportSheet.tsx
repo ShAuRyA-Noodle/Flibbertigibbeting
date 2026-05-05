@@ -263,7 +263,7 @@ function SheetBody({
                 {panel.imageQuality === "excellent" && "Capture exceeds inspection standards."}
                 {panel.imageQuality === "good" && "Capture sufficient for confident analysis."}
                 {panel.imageQuality === "fair" && "Acceptable, recommend reshoot at next visit."}
-                {panel.imageQuality === "poor" && "Re-capture advised — analysis confidence reduced."}
+                {panel.imageQuality === "poor" && "Re-capture advised, analysis confidence reduced."}
               </div>
             </div>
           </div>

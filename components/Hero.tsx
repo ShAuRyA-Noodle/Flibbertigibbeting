@@ -13,13 +13,34 @@ export function Hero() {
   const headlineOpacity = useTransform(smoothProgress, [0, 0.7], [1, 0]);
   const orbY = useTransform(smoothProgress, [0, 1], [0, 220]);
   const orbScale = useTransform(smoothProgress, [0, 1], [1, 1.4]);
+  const videoOpacity = useTransform(smoothProgress, [0, 0.6, 1], [0.3, 0.18, 0.04]);
+  const videoScale = useTransform(smoothProgress, [0, 1], [1, 1.08]);
 
   return (
-    <section ref={ref} className="relative overflow-hidden">
-      <div className="absolute inset-0 grid-bg opacity-60 pointer-events-none" />
+    <section ref={ref} className="relative overflow-hidden isolate">
+      <motion.div
+        style={{ opacity: videoOpacity, scale: videoScale }}
+        className="absolute inset-0 -z-10 pointer-events-none parallax-soft will-change-transform"
+        aria-hidden
+      >
+        <video
+          src="/bloom.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          className="w-full h-full object-cover"
+          style={{ filter: "saturate(1.05) contrast(1.05)", mixBlendMode: "screen" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg)]/40 via-transparent to-[var(--bg)] pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[var(--bg)]/70 via-transparent to-[var(--bg)]/30 pointer-events-none" />
+      </motion.div>
+
+      <div className="absolute inset-0 grid-bg opacity-40 pointer-events-none" />
       <motion.div
         style={{ y: orbY, scale: orbScale }}
-        className="absolute -top-32 right-[-10%] w-[640px] h-[640px] rounded-full blur-3xl opacity-55 pointer-events-none parallax-soft"
+        className="absolute -top-32 right-[-10%] w-[640px] h-[640px] rounded-full blur-3xl opacity-45 pointer-events-none parallax-soft"
       >
         <div className="w-full h-full rounded-full" style={{ background: "radial-gradient(circle, rgba(255,122,26,0.45), transparent 60%)" }} />
       </motion.div>
@@ -64,7 +85,7 @@ export function Hero() {
         >
           SOLARIS ingests a single panel photo or an entire fleet upload, runs frontier vision
           models against a 21-defect taxonomy, and synthesizes an executive O&amp;M report with
-          quantified efficiency loss and prioritized actions — in under a minute.
+          quantified efficiency loss and prioritized actions, in under a minute.
         </motion.p>
 
         <motion.div

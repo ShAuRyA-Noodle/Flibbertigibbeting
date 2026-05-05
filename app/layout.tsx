@@ -13,7 +13,7 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "SOLARIS — AI Photovoltaic Inspection",
+  title: "SOLARIS, AI Photovoltaic Inspection",
   description:
     "Upload single or batch solar panel imagery. SOLARIS runs multimodal AI analysis to surface defects, efficiency loss, and prioritized maintenance actions.",
 };

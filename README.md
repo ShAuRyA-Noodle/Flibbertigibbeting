@@ -2,7 +2,7 @@
 
 > Photovoltaic intelligence for humans who own panels and don't want to climb on the roof to check them.
 
-Drop a photo of a solar panel. SOLARIS looks at it the way a 20-year inspector would, finds every crack, hotspot, smudge, and bird-mess, then writes you a report that tells you what's broken, how much money it's quietly costing you, and what to do about it — by Tuesday.
+Drop a photo of a solar panel. SOLARIS looks at it the way a 20-year inspector would, finds every crack, hotspot, smudge, and bird-mess, then writes you a report that tells you what's broken, how much money it's quietly costing you, and what to do about it, by Tuesday.
 
 It works for one panel or twenty-four at once. It takes about a minute.
 
@@ -14,7 +14,7 @@ Solar farms lose ~5–15% of their output every year to stuff that's visible fro
 
 SOLARIS skips that.
 
-A frontier vision model (Gemini) inspects each image against a 21-defect taxonomy — microcracks, snail-trails, PID, delamination, encapsulant yellowing, shading, soiling, the works — and emits structured JSON. A reasoning model (Llama 3.3 70B on Groq) then aggregates every finding into an executive O&M report: a fleet health score, severity heatmap, ranked risks, quantified energy loss in kWh/kW, and a 7/30/90-day action ladder.
+A frontier vision model (Gemini) inspects each image against a 21-defect taxonomy, microcracks, snail-trails, PID, delamination, encapsulant yellowing, shading, soiling, the works, and emits structured JSON. A reasoning model (Llama 3.3 70B on Groq) then aggregates every finding into an executive O&M report: a fleet health score, severity heatmap, ranked risks, quantified energy loss in kWh/kW, and a 7/30/90-day action ladder.
 
 The whole pipeline runs as a streaming API. You watch panels light up green one by one as their analysis lands, and the dashboard assembles itself live.
 
@@ -24,13 +24,13 @@ That's the whole product. Two models, in series, doing what one model can't.
 
 ## What it actually does
 
-**Upload.** Drag a single photo or batch up to 24. JPEG, PNG, WebP, HEIC. Drone shots, ground shots, phone shots — anything where the cells are visible.
+**Upload.** Drag a single photo or batch up to 24. JPEG, PNG, WebP, HEIC. Drone shots, ground shots, phone shots, anything where the cells are visible.
 
 **Inspect.** Each image gets pushed through Gemini with a prompt that turns it into a senior PV inspector. Output is a strict JSON object: panel type guess, cell count, cleanliness score, condition score, defect list (each with severity, location, confidence, estimated efficiency loss, notes), immediate actions, image-quality grade.
 
-**Synthesize.** Once every panel finishes, the array of inspection JSONs gets handed to Llama 3.3 with a different prompt — this one a principal O&M engineer. Output is a fleet-level report: health score weighted by per-panel condition, severity distribution, top risks with affected panel IDs, prioritized recommendations with expected impact, annual kWh/kW loss estimate, qualitative revenue-at-risk band, maintenance window, next inspection date.
+**Synthesize.** Once every panel finishes, the array of inspection JSONs gets handed to Llama 3.3 with a different prompt, this one a principal O&M engineer. Output is a fleet-level report: health score weighted by per-panel condition, severity distribution, top risks with affected panel IDs, prioritized recommendations with expected impact, annual kWh/kW loss estimate, qualitative revenue-at-risk band, maintenance window, next inspection date.
 
-**Drill down.** The dashboard renders as a bento grid. Click any panel card or any panel ID inside the risks list — a full-screen sheet flies in from the right with the deep dive: hero image, calibrated metrics, every defect as its own card, the inspector's narrative, every recommended action.
+**Drill down.** The dashboard renders as a bento grid. Click any panel card or any panel ID inside the risks list, a full-screen sheet flies in from the right with the deep dive: hero image, calibrated metrics, every defect as its own card, the inspector's narrative, every recommended action.
 
 **Export.** One-click JSON export of the full report, per-panel JSON export from inside the sheet, and `window.print()` styled for a clean PDF.
 
@@ -40,14 +40,14 @@ That's the whole product. Two models, in series, doing what one model can't.
 
 - **Next.js 16** (App Router, Turbopack, React 19)
 - **TypeScript** end-to-end with **Zod** validating every model response before it touches state
-- **Tailwind v4** + a custom design system (industrial-brutalist meets editorial — Geist mono ticks, Instrument Serif display, warm-amber accent on near-black)
+- **Tailwind v4** + a custom design system (industrial-brutalist meets editorial, Geist mono ticks, Instrument Serif display, warm-amber accent on near-black)
 - **Framer Motion** for spring sheets, scroll-linked parallax (`useScroll` + `useSpring`), `whileInView` reveals, hover lifts, count-ups
 - **Lenis** smooth-scroll for that Apple/Framer-site momentum
-- **Gemini** (`@google/genai`) for vision — primary model from env, automatic fallback to `gemini-2.5-flash` → `gemini-2.0-flash` if the primary 404s
+- **Gemini** (`@google/genai`) for vision, primary model from env, automatic fallback to `gemini-2.5-flash` → `gemini-2.0-flash` if the primary 404s
 - **Groq SDK** for synthesis on `llama-3.3-70b-versatile`, JSON-mode forced
 - **react-dropzone** for drag/drop/paste, **lucide-react** for icons
 
-The route handler runs on Node and streams **NDJSON** events (`start`, `progress`, `panel`, `synthesizing`, `report`, `error`, `done`) so the UI can light up panels the instant each one finishes — no waiting for the slowest image.
+The route handler runs on Node and streams **NDJSON** events (`start`, `progress`, `panel`, `synthesizing`, `report`, `error`, `done`) so the UI can light up panels the instant each one finishes, no waiting for the slowest image.
 
 ---
 
@@ -72,7 +72,7 @@ solaris/
 │   ├── globals.css         # design system: tokens, severity palette, motion utils
 │   └── api/
 │       └── analyze/
-│           └── route.ts    # POST /api/analyze — multipart in, NDJSON stream out
+│           └── route.ts    # POST /api/analyze, multipart in, NDJSON stream out
 │
 ├── components/
 │   ├── Header.tsx              # frosted blur ramp on scroll-y, anchor nav
@@ -99,7 +99,7 @@ solaris/
 ├── postcss.config.mjs
 ├── tsconfig.json
 ├── package.json
-├── .env.local              # NOT committed — keys live here
+├── .env.local              # NOT committed, keys live here
 └── README.md
 ```
 
@@ -139,7 +139,7 @@ Get keys at:
 
 ## What's next (the upgrades I'm building)
 
-The current build is v1 — vision inspection for stills. The roadmap is a lot bigger.
+The current build is v1, vision inspection for stills. The roadmap is a lot bigger.
 
 **1. Cell-level bounding boxes.** Use Gemini's grounding/spatial-understanding mode to draw boxes directly on each defect inside the image. Hover a defect chip in the sheet → that cell highlights on the photo. Inspectors live for this.
 
@@ -153,9 +153,9 @@ The current build is v1 — vision inspection for stills. The roadmap is a lot b
 
 **6. Webhook + Slack integration.** When a critical defect lands during a scheduled drone-flight upload, ping the O&M team in Slack with the panel ID, image, and recommended action.
 
-**7. Multi-language reports.** Vision stays in English (the technical taxonomy is universal); synthesis prompt switches based on user locale. Spanish, Portuguese, Hindi, Mandarin priority — those are the markets where solar is exploding hardest.
+**7. Multi-language reports.** Vision stays in English (the technical taxonomy is universal); synthesis prompt switches based on user locale. Spanish, Portuguese, Hindi, Mandarin priority, those are the markets where solar is exploding hardest.
 
-**8. PDF export with proper layout.** Browser-print works, but `react-pdf` would let us ship a real branded report — cover page, exec summary, per-panel appendix, sign-off line for the inspector.
+**8. PDF export with proper layout.** Browser-print works, but `react-pdf` would let us ship a real branded report, cover page, exec summary, per-panel appendix, sign-off line for the inspector.
 
 **9. Mobile capture flow.** Tap "inspect" on a phone → camera opens with a guide overlay (frame the panel like this), shutter, instant analysis, push to fleet history. Field-tech mode.
 
@@ -163,7 +163,7 @@ The current build is v1 — vision inspection for stills. The roadmap is a lot b
 
 **11. White-label mode.** Solar installers want to hand SOLARIS to their customers under their own brand. Tenanted logo + color override + custom domain.
 
-**12. Self-host vision.** When the volume justifies it, swap Gemini for a fine-tuned open vision model (LLaVA-Next, Idefics-3) on dedicated GPU — eliminates per-call cost and lets us train on PV-specific defect data we accumulate.
+**12. Self-host vision.** When the volume justifies it, swap Gemini for a fine-tuned open vision model (LLaVA-Next, Idefics-3) on dedicated GPU, eliminates per-call cost and lets us train on PV-specific defect data we accumulate.
 
 That's the long roadmap. v1 is the foundation: prove that a two-model pipeline with strict schemas can give an inspector-grade answer in under a minute. Everything above stacks on top of that.
 
@@ -171,7 +171,7 @@ That's the long roadmap. v1 is the foundation: prove that a two-model pipeline w
 
 ## A note on accuracy
 
-SOLARIS is decision-support, not a substitute for a licensed PV engineer. The model is good enough to triage, prioritize, and catch things humans miss in a quick visual sweep — but for warranty claims, replacement decisions, or anything safety-critical, the report should be reviewed by someone with a clipboard and a multimeter.
+SOLARIS is decision-support, not a substitute for a licensed PV engineer. The model is good enough to triage, prioritize, and catch things humans miss in a quick visual sweep, but for warranty claims, replacement decisions, or anything safety-critical, the report should be reviewed by someone with a clipboard and a multimeter.
 
 That's not a hedge. That's just where current vision models actually sit. The point of SOLARIS is to make the inspector's job 10× faster, not to replace them.
 
