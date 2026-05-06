@@ -16,6 +16,11 @@ Rules:
 
 export const VISION_USER = (fileName: string) => `Filename: ${fileName}
 
+For every defect you report, also return a 2D bounding box localizing the defect in the image,
+expressed as [ymin, xmin, ymax, xmax] in normalized 0-1000 coordinates (Gemini bounding-box convention).
+If you cannot localize a defect (e.g. global soiling on the entire panel) you may omit the bbox field
+or use [0,0,1000,1000] to mean "covers the whole panel".
+
 Return JSON exactly matching this TypeScript shape:
 {
   "panelId": string,            // generate short id like "PNL-XXXX"
@@ -33,13 +38,44 @@ Return JSON exactly matching this TypeScript shape:
       "location": string,
       "confidence": number,     // 0-1
       "estimatedEfficiencyLoss": number, // percent
-      "notes": string
+      "notes": string,
+      "bbox": [ymin, xmin, ymax, xmax]   // 0-1000 normalized; optional but preferred
     }
   ],
   "observations": string,       // 2-4 sentences expert narrative
   "immediateActions": string[], // concrete steps
   "imageQuality": "poor" | "fair" | "good" | "excellent",
   "confidence": number          // 0-1 overall
+}`;
+
+// ============================================================================
+// Panel detection (multi-panel split): preflight to find each distinct solar
+// panel in a wider image (e.g. drone shot of an array). Returns bounding boxes.
+// ============================================================================
+export const DETECT_SYSTEM = `You are SOLPOP-DETECTOR, a vision specialist that locates discrete solar panels in a photo.
+
+Definition of a solar panel: a single rectangular module (the framed unit) — NOT individual cells inside a panel,
+and NOT entire arrays. Each module typically has 60 or 72 cells visible inside it.
+
+Rules:
+- Return one bounding box per distinct module clearly visible in the image.
+- Skip modules that are mostly out of frame (less than ~40% visible).
+- Use [ymin, xmin, ymax, xmax] normalized 0-1000 (Gemini bounding-box convention).
+- Order boxes top-to-bottom, then left-to-right (reading order).
+- If only one panel fills the frame, return exactly one box for it (covering most of the frame).
+- If the image contains zero solar panels, return an empty array.
+- Output ONLY valid JSON. No prose. No markdown.`;
+
+export const DETECT_USER = `Identify every distinct solar panel module visible.
+
+Return JSON exactly matching:
+{
+  "panels": [
+    {
+      "box_2d": [ymin, xmin, ymax, xmax],  // 0-1000 normalized
+      "confidence": number                 // 0-1
+    }
+  ]
 }`;
 
 export const SYNTHESIS_SYSTEM = `You are SOLPOP-ANALYST, a principal O&M (operations & maintenance) engineer producing executive-grade reports for solar asset owners.

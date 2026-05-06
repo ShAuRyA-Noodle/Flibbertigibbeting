@@ -1,10 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CheckCircle2, AlertTriangle, Loader2, ArrowUpRight } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Loader2, ArrowUpRight, Crosshair } from "lucide-react";
 import type { PanelAnalysis, Severity } from "@/lib/schema";
 import { cn } from "@/lib/utils";
 import { CountUp } from "./CountUp";
+import { BBoxOverlay } from "./BBoxOverlay";
 
 export type Pending = {
   fileName: string;
@@ -48,9 +49,9 @@ export function AnalysisCard({
       }}
     >
       <div className="relative aspect-[16/10] overflow-hidden bg-black">
-        {previewUrl && (
+        {(panel?.imageDataUrl || previewUrl) && (
           <motion.img
-            src={previewUrl}
+            src={panel?.imageDataUrl || previewUrl}
             alt={pending.fileName}
             className="w-full h-full object-cover opacity-95"
             initial={{ scale: 1.04 }}
@@ -58,6 +59,9 @@ export function AnalysisCard({
             whileHover={interactive ? { scale: 1.04 } : undefined}
             transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
           />
+        )}
+        {panel && panel.defects.some((d) => Array.isArray(d.bbox)) && (
+          <BBoxOverlay defects={panel.defects} showLabels={false} />
         )}
         <div className="absolute inset-0 cell-pattern opacity-20 pointer-events-none" />
         <div className="absolute top-3 left-3 flex items-center gap-2 flex-wrap">
@@ -72,6 +76,11 @@ export function AnalysisCard({
           {pending.status === "done" && (
             <span className="font-mono text-[10.5px] tracking-[0.18em] uppercase px-2.5 py-1 rounded-full text-[#d5ffdf] bg-[rgba(128,237,153,0.18)] backdrop-blur flex items-center gap-1.5">
               <CheckCircle2 size={11} /> Complete
+            </span>
+          )}
+          {panel && panel.sourceBBox && typeof panel.sourceIndex === "number" && (
+            <span className="font-mono text-[10.5px] tracking-[0.18em] uppercase px-2.5 py-1 rounded-full text-white/85 bg-black/55 backdrop-blur flex items-center gap-1.5">
+              <Crosshair size={10} /> seg #{panel.sourceIndex + 1}
             </span>
           )}
           {pending.status === "failed" && (

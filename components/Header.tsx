@@ -17,7 +17,7 @@ export function Header() {
         className="absolute inset-0 transition-colors duration-500"
       />
       <div className="relative max-w-[1400px] mx-auto px-6 md:px-10 h-[72px] flex items-center justify-between">
-        <a href="#" className="flex items-center gap-3.5 group">
+        <a href="/" className="flex items-center gap-3.5 group">
           <motion.div
             initial={{ rotate: 0 }}
             animate={{ rotate: 360 }}
@@ -42,12 +42,13 @@ export function Header() {
         </a>
 
         <nav className="hidden md:flex items-center gap-9">
-          <a className="tick hover:text-[var(--fg)] transition-colors duration-200" href="#capabilities">Capabilities</a>
-          <a className="tick hover:text-[var(--fg)] transition-colors duration-200" href="#analyze">Analyze</a>
-          <a className="tick hover:text-[var(--fg)] transition-colors duration-200" href="#how">How it works</a>
+          <a className="tick hover:text-[var(--fg)] transition-colors duration-200" href="/gallery">Gallery</a>
+          <a className="tick hover:text-[var(--fg)] transition-colors duration-200" href="/inspect">Inspect</a>
+          <a className="tick hover:text-[var(--fg)] transition-colors duration-200" href="/sessions">History</a>
+          <a className="tick hover:text-[var(--fg)] transition-colors duration-200" href="/compare">Compare</a>
         </nav>
 
-        <a href="#analyze" className="btn-ghost text-sm flex items-center gap-2 !py-2.5 !px-5">
+        <a href="/inspect" className="btn-ghost text-sm flex items-center gap-2 !py-2.5 !px-5">
           <Sparkles size={14} className="text-[var(--accent)]" />
           <span>Run inspection</span>
         </a>

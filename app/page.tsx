@@ -1,7 +1,7 @@
 import { Header } from "@/components/Header";
 import { Hero } from "@/components/Hero";
 import { HowItWorks } from "@/components/HowItWorks";
-import { SolpopApp } from "@/components/SolpopApp";
+import { LandingCTA } from "@/components/LandingCTA";
 import { Footer } from "@/components/Footer";
 
 export default function Home() {
@@ -11,7 +11,7 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <HowItWorks />
-        <SolpopApp />
+        <LandingCTA />
       </main>
       <Footer />
     </>

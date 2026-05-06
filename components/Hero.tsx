@@ -51,12 +51,12 @@ export function Hero() {
         <div className="w-full h-full rounded-full" style={{ background: "radial-gradient(circle, rgba(255,61,138,0.45), transparent 60%)" }} />
       </motion.div>
 
-      <div className="relative max-w-[1400px] mx-auto px-6 md:px-10 pt-24 md:pt-36 pb-24 md:pb-36">
+      <div className="relative max-w-[1400px] mx-auto px-6 md:px-10 pt-10 md:pt-16 pb-20 md:pb-28">
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          className="flex items-center gap-3 mb-12"
+          className="flex items-center gap-3 mb-5 md:mb-7"
         >
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-[var(--accent)] shadow-[0_0_22px_var(--accent-glow)]" />
           <span className="tick">Live · Multimodal Inspection Engine</span>
@@ -64,7 +64,7 @@ export function Hero() {
 
         <motion.h1
           style={{ y: headlineY, opacity: headlineOpacity }}
-          className="h-display text-[72px] md:text-[136px] lg:text-[168px] parallax-soft"
+          className="h-display text-[64px] md:text-[120px] lg:text-[152px] parallax-soft"
         >
           {["See every", "crack,", "hotspot, and", "kilowatt", "left on the table."].map((line, i) => (
             <motion.span
@@ -87,7 +87,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-12 max-w-[760px] body-lg text-[1.25rem] md:text-[1.4rem] leading-[1.5]"
+          className="mt-8 md:mt-10 max-w-[720px] body-lg text-[1.18rem] md:text-[1.32rem] leading-[1.5]"
         >
           SOLPOP ingests a single panel photo or an entire fleet upload, runs frontier vision
           models against a 21-defect taxonomy, and synthesizes an executive O&amp;M report with
@@ -98,13 +98,13 @@ export function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.7, delay: 0.85 }}
-          className="mt-14 flex flex-wrap items-center gap-4"
+          className="mt-10 md:mt-12 flex flex-wrap items-center gap-4"
         >
-          <a href="#analyze" className="btn-primary inline-flex items-center gap-2">
+          <a href="/inspect" className="btn-primary inline-flex items-center gap-2">
             Begin inspection
-            <ArrowDown size={16} />
+            <ArrowDown size={16} className="-rotate-90" />
           </a>
-          <a href="#how" className="btn-ghost">How it works</a>
+          <a href="/gallery" className="btn-ghost">Try a sample</a>
 
           <div className="flex items-center gap-3 ml-2">
             <span className="tick">Powered by</span>
@@ -114,7 +114,7 @@ export function Hero() {
           </div>
         </motion.div>
 
-        <div className="mt-28 grid grid-cols-2 md:grid-cols-4 gap-7 md:gap-10" id="capabilities">
+        <div className="mt-20 md:mt-24 grid grid-cols-2 md:grid-cols-4 gap-7 md:gap-10" id="capabilities">
           {[
             { num: 21, suf: "", l: "Defect classes detected" },
             { num: 60, suf: "s", prefix: "<", l: "Per-fleet inspection" },

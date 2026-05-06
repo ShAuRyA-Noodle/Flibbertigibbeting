@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Download, AlertTriangle, CheckCircle2, Compass, Sparkles, Layers, Ruler, Activity } from "lucide-react";
+import { X, Download, AlertTriangle, CheckCircle2, Compass, Sparkles, Layers, Ruler, Activity, Crosshair, ImageDown, Loader2, History } from "lucide-react";
 import type { PanelAnalysis } from "@/lib/schema";
 import { cn } from "@/lib/utils";
 import { CountUp } from "./CountUp";
 import { lenisStop, lenisStart } from "./SmoothScroll";
+import { BBoxOverlay } from "./BBoxOverlay";
+import { DefectExplainModal } from "./DefectExplainModal";
+import { annotatePanelToBlob, safeFileStub } from "@/lib/annotateImage";
+import { HelpCircle } from "lucide-react";
 
 export function PanelReportSheet({
   panel,
@@ -14,12 +18,14 @@ export function PanelReportSheet({
   onClose,
   index,
   total,
+  sessionId,
 }: {
   panel: PanelAnalysis | null;
   previewUrl?: string;
   onClose: () => void;
   index: number;
   total: number;
+  sessionId?: string;
 }) {
   useEffect(() => {
     if (panel) {
@@ -78,6 +84,7 @@ export function PanelReportSheet({
               onDownload={downloadPanel}
               index={index}
               total={total}
+              sessionId={sessionId}
             />
           </motion.aside>
         </>
@@ -93,6 +100,7 @@ function SheetBody({
   onDownload,
   index,
   total,
+  sessionId,
 }: {
   panel: PanelAnalysis;
   previewUrl?: string;
@@ -100,8 +108,36 @@ function SheetBody({
   onDownload: () => void;
   index: number;
   total: number;
+  sessionId?: string;
 }) {
   const condColor = scoreColor(panel.conditionScore);
+  const [hoveredDefectIdx, setHoveredDefectIdx] = useState<number | null>(null);
+  const [overlayOn, setOverlayOn] = useState(true);
+  const [annotating, setAnnotating] = useState(false);
+  const [explain, setExplain] = useState<{ type: string; severity: PanelAnalysis["defects"][number]["severity"] } | null>(null);
+  const heroSrc = panel.imageDataUrl || previewUrl;
+  const groundedDefects = panel.defects.filter((d) => Array.isArray(d.bbox)).length;
+
+  async function downloadAnnotatedPng() {
+    if (!heroSrc) return;
+    setAnnotating(true);
+    try {
+      const blob = await annotatePanelToBlob(panel, heroSrc, { format: "image/png" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${safeFileStub(panel)}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("annotatePanelToBlob failed", e);
+    } finally {
+      setAnnotating(false);
+    }
+  }
+
   return (
     <div className="relative">
       <div className="sticky top-0 z-10 frosted border-b hairline px-7 py-4 flex items-center justify-between">
@@ -113,9 +149,43 @@ function SheetBody({
           <span className="font-mono text-[11px] tracking-[0.16em] text-[var(--fg-dim)] truncate">{panel.panelId}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={onDownload} className="btn-ghost text-[13px] inline-flex items-center gap-2 !py-2 !px-4">
+          {groundedDefects > 0 && (
+            <button
+              onClick={() => setOverlayOn((v) => !v)}
+              className={cn(
+                "btn-ghost text-[12px] inline-flex items-center gap-1.5 !py-2 !px-3",
+                overlayOn && "!border-[var(--accent)] !text-[var(--accent)]"
+              )}
+              title={overlayOn ? "Hide defect overlay" : "Show defect overlay"}
+            >
+              <Crosshair size={13} />
+              <span className="font-mono tracking-[0.1em]">{groundedDefects}</span>
+            </button>
+          )}
+          {sessionId && (
+            <a
+              href={`/timeline?session=${encodeURIComponent(sessionId)}&panel=${encodeURIComponent(panel.panelId)}`}
+              title="Re-inspect this panel and diff against baseline"
+              className="btn-ghost text-[13px] inline-flex items-center gap-2 !py-2 !px-3"
+            >
+              <History size={14} />
+              <span className="hidden md:inline">Re-inspect</span>
+            </a>
+          )}
+          {heroSrc && (
+            <button
+              onClick={downloadAnnotatedPng}
+              disabled={annotating}
+              title="Download image with defects annotated"
+              className="btn-ghost text-[13px] inline-flex items-center gap-2 !py-2 !px-3"
+            >
+              {annotating ? <Loader2 size={14} className="animate-spin" /> : <ImageDown size={14} />}
+              <span className="hidden md:inline">PNG</span>
+            </button>
+          )}
+          <button onClick={onDownload} className="btn-ghost text-[13px] inline-flex items-center gap-2 !py-2 !px-3">
             <Download size={14} />
-            Export
+            <span className="hidden md:inline">JSON</span>
           </button>
           <button onClick={onClose} className="w-10 h-10 rounded-full grid place-items-center border hairline-strong hover:border-[var(--accent)] hover:bg-[var(--surface-2)] transition-all" aria-label="Close">
             <X size={16} />
@@ -123,14 +193,21 @@ function SheetBody({
         </div>
       </div>
 
-      <div className="relative aspect-[16/9] overflow-hidden bg-black">
-        {previewUrl && (
+      <div className="relative aspect-[16/9] overflow-hidden bg-black select-none">
+        {heroSrc && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={previewUrl} alt={panel.fileName} className="w-full h-full object-cover" />
+          <img src={heroSrc} alt={panel.fileName} className="w-full h-full object-cover" />
         )}
-        <div className="absolute inset-0 cell-pattern opacity-25 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-        <div className="absolute bottom-6 left-7 right-7 flex items-end justify-between gap-6">
+        {overlayOn && groundedDefects > 0 && (
+          <BBoxOverlay
+            defects={panel.defects}
+            hoveredIndex={hoveredDefectIdx}
+            onHover={setHoveredDefectIdx}
+          />
+        )}
+        <div className="absolute inset-0 cell-pattern opacity-15 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent pointer-events-none" />
+        <div className="absolute bottom-6 left-7 right-7 flex items-end justify-between gap-6 pointer-events-none">
           <div className="min-w-0">
             <div className="font-mono text-[11px] tracking-[0.18em] text-white/65 mb-2">{panel.fileName}</div>
             <h2 className="h-display text-white text-[40px] md:text-[56px] leading-[0.95]">
@@ -187,15 +264,39 @@ function SheetBody({
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+                  onMouseEnter={() => d.bbox && setHoveredDefectIdx(i)}
+                  onMouseLeave={() => setHoveredDefectIdx(null)}
                   className={cn(
-                    "card-elev p-5 md:p-6 ring-defect",
-                    d.severity === "critical" && "border-[rgba(239,35,60,0.35)]"
+                    "card-elev p-5 md:p-6 ring-defect transition-all duration-300",
+                    d.severity === "critical" && "border-[rgba(239,35,60,0.35)]",
+                    hoveredDefectIdx === i && "scale-[1.005] !border-[var(--accent)]",
+                    d.bbox && "cursor-crosshair"
                   )}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
                     <div className="flex items-center gap-3">
+                      <span className="font-mono text-[11px] tracking-[0.16em] text-[var(--fg-mute)]">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
                       <span className={cn("severity-pill", d.severity)}>{d.severity}</span>
                       <span className="font-serif text-[22px] md:text-[26px] leading-tight">{d.type}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExplain({ type: d.type, severity: d.severity });
+                        }}
+                        className="text-[var(--fg-mute)] hover:text-[var(--accent)] transition-colors"
+                        aria-label="What is this defect?"
+                        title="Explain this defect"
+                      >
+                        <HelpCircle size={15} />
+                      </button>
+                      {d.bbox && (
+                        <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-[var(--accent)] flex items-center gap-1">
+                          <Crosshair size={10} /> located
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 text-right">
                       <div>
@@ -269,6 +370,13 @@ function SheetBody({
           </div>
         </Section>
       </div>
+
+      <DefectExplainModal
+        open={explain !== null}
+        defectType={explain?.type ?? null}
+        severity={explain?.severity}
+        onClose={() => setExplain(null)}
+      />
     </div>
   );
 }

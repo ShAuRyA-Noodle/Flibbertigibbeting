@@ -1,8 +1,8 @@
 "use client";
 
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
-import { useRef } from "react";
-import { Download, Printer, ArrowUpRight } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Download, Printer, ArrowUpRight, X as XIcon, Filter } from "lucide-react";
 import type { FullAnalysis } from "@/lib/schema";
 import { cn } from "@/lib/utils";
 import { CountUp } from "./CountUp";
@@ -29,6 +29,39 @@ export function ReportDashboard({
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start end", "end start"] });
   const smoothProgress = useSpring(scrollYProgress, { stiffness: 110, damping: 24, mass: 0.4 });
   const heroY = useTransform(smoothProgress, [0, 1], [40, -40]);
+
+  const [matrixView, setMatrixView] = useState(false);
+  const [filterType, setFilterType] = useState<string | null>(null);
+
+  const defectTypeCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of panels) for (const d of p.defects) m.set(d.type.toLowerCase(), (m.get(d.type.toLowerCase()) ?? 0) + 1);
+    return Array.from(m.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12);
+  }, [panels]);
+
+  const filteredPanels = useMemo(() => {
+    if (!filterType) return panels;
+    const f = filterType.toLowerCase();
+    return panels.filter((p) => p.defects.some((d) => d.type.toLowerCase() === f));
+  }, [panels, filterType]);
+
+  // Anomaly detection: condition Z-score < -1.5 from mean
+  const anomalies = useMemo(() => {
+    if (panels.length < 4) return new Set<string>();
+    const conds = panels.map((p) => p.conditionScore);
+    const mean = conds.reduce((a, b) => a + b, 0) / conds.length;
+    const variance = conds.reduce((a, b) => a + (b - mean) ** 2, 0) / conds.length;
+    const sd = Math.sqrt(variance);
+    if (sd < 4) return new Set<string>();
+    const out = new Set<string>();
+    for (const p of panels) {
+      const z = (p.conditionScore - mean) / sd;
+      if (z < -1.4) out.add(p.panelId);
+    }
+    return out;
+  }, [panels]);
 
   return (
     <motion.section
@@ -118,6 +151,10 @@ export function ReportDashboard({
               <div className="font-serif text-[26px] mt-2 leading-tight">{report.estimatedRevenueAtRisk}</div>
             </div>
           </div>
+
+          <div className="divider my-7" />
+
+          <CarbonLedger annualLossKwhPerKw={report.estimatedAnnualEnergyLossKwhPerKw} />
         </RevealCard>
 
         <RevealCard className="col-span-12 lg:col-span-7 card-elev p-8 md:p-9" delay={0.05}>
@@ -182,10 +219,74 @@ export function ReportDashboard({
         </RevealCard>
 
         <RevealCard className="col-span-12 card-elev p-8 md:p-9" delay={0.05}>
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
             <div className="tick">Per-panel ledger</div>
-            <span className="font-mono text-[12px] text-[var(--fg-mute)]">Click any row to open report</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMatrixView((v) => !v)}
+                className={cn(
+                  "font-mono text-[11px] tracking-[0.14em] uppercase px-3 py-1.5 rounded-full border transition-colors",
+                  matrixView
+                    ? "border-[var(--accent)] text-[var(--accent)]"
+                    : "hairline-strong text-[var(--fg-dim)] hover:border-[var(--accent)] hover:text-[var(--fg)]"
+                )}
+              >
+                {matrixView ? "Table view" : "Heatmap view"}
+              </button>
+              {anomalies.size > 0 && (
+                <span className="font-mono text-[10.5px] tracking-[0.14em] uppercase px-2.5 py-1 rounded-full bg-[rgba(239,35,60,0.10)] text-[var(--sev-critical)] border border-[rgba(239,35,60,0.4)]">
+                  {anomalies.size} outlier{anomalies.size === 1 ? "" : "s"}
+                </span>
+              )}
+            </div>
           </div>
+
+          {defectTypeCounts.length > 0 && (
+            <div className="flex items-center flex-wrap gap-2 mb-5">
+              <Filter size={12} className="text-[var(--fg-mute)] mr-1" />
+              <button
+                type="button"
+                onClick={() => setFilterType(null)}
+                className={cn(
+                  "font-mono text-[11px] tracking-[0.12em] uppercase px-3 py-1 rounded-full border transition-colors",
+                  filterType === null
+                    ? "border-[var(--accent)] text-[var(--accent)]"
+                    : "hairline-strong text-[var(--fg-dim)] hover:border-[var(--accent)]"
+                )}
+              >
+                All · {panels.length}
+              </button>
+              {defectTypeCounts.map(([t, c]) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setFilterType(filterType === t ? null : t)}
+                  className={cn(
+                    "font-mono text-[11px] tracking-[0.12em] uppercase px-3 py-1 rounded-full border transition-colors lowercase normal-case",
+                    filterType === t
+                      ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--surface-2)]"
+                      : "hairline-strong text-[var(--fg-dim)] hover:border-[var(--accent)] hover:text-[var(--fg)]"
+                  )}
+                >
+                  {t} · {c}
+                </button>
+              ))}
+              {filterType && (
+                <button
+                  onClick={() => setFilterType(null)}
+                  className="ml-1 text-[var(--fg-mute)] hover:text-[var(--accent)] transition-colors"
+                  aria-label="Clear filter"
+                >
+                  <XIcon size={13} />
+                </button>
+              )}
+            </div>
+          )}
+
+          {matrixView ? (
+            <SeverityMatrix panels={filteredPanels} anomalies={anomalies} onOpenPanel={onOpenPanel} />
+          ) : (
           <div className="overflow-x-auto no-scrollbar">
             <table className="w-full text-left border-separate border-spacing-y-2">
               <thead>
@@ -201,8 +302,9 @@ export function ReportDashboard({
                 </tr>
               </thead>
               <tbody>
-                {panels.map((p) => {
+                {filteredPanels.map((p) => {
                   const top = [...p.defects].sort((a, b) => sevWeight(b.severity) - sevWeight(a.severity))[0];
+                  const isAnomaly = anomalies.has(p.panelId);
                   return (
                     <tr
                       key={p.panelId}
@@ -210,7 +312,14 @@ export function ReportDashboard({
                       className="text-[14px] cursor-pointer transition-colors duration-200 hover:[&>td]:bg-[var(--surface-3)]"
                       style={{ background: "var(--surface-2)" }}
                     >
-                      <td className="px-4 py-4 rounded-l-lg font-mono text-[13px]">{p.panelId}</td>
+                      <td className="px-4 py-4 rounded-l-lg font-mono text-[13px]">
+                        {p.panelId}
+                        {isAnomaly && (
+                          <span className="ml-2 font-mono text-[9.5px] tracking-[0.16em] uppercase px-1.5 py-0.5 rounded text-[var(--sev-critical)] bg-[rgba(239,35,60,0.10)] border border-[rgba(239,35,60,0.4)]">
+                            outlier
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-4">{p.panelTypeGuess}</td>
                       <td className="px-4 py-4">{Math.round(p.cleanlinessScore)}</td>
                       <td className="px-4 py-4 font-serif text-[18px]" style={{ color: scoreColor(p.conditionScore) }}>
@@ -237,6 +346,7 @@ export function ReportDashboard({
               </tbody>
             </table>
           </div>
+          )}
         </RevealCard>
       </div>
 
@@ -297,4 +407,77 @@ function severityGradient(k: "low" | "medium" | "high" | "critical") {
 
 function sevWeight(s: "low" | "medium" | "high" | "critical") {
   return { low: 1, medium: 2, high: 3, critical: 4 }[s];
+}
+
+function SeverityMatrix({
+  panels,
+  anomalies,
+  onOpenPanel,
+}: {
+  panels: FullAnalysis["panels"];
+  anomalies: Set<string>;
+  onOpenPanel?: (id: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-9 xl:grid-cols-12 gap-2">
+      {panels.map((p) => {
+        const c = p.conditionScore;
+        const isAnomaly = anomalies.has(p.panelId);
+        const color = scoreColor(c);
+        const intensity = Math.max(0.2, Math.min(0.92, 1 - c / 100));
+        return (
+          <button
+            key={p.panelId}
+            type="button"
+            onClick={() => onOpenPanel?.(p.panelId)}
+            title={`${p.panelId} · cond ${Math.round(c)} · loss ${p.estimatedTotalEfficiencyLoss.toFixed(1)}%${isAnomaly ? " · OUTLIER" : ""}`}
+            className="relative aspect-square rounded-md border hairline overflow-hidden hover:scale-[1.06] hover:z-10 transition-transform duration-200"
+            style={{
+              background: `linear-gradient(135deg, ${color}${Math.round(intensity * 255).toString(16).padStart(2, "0")}, transparent 110%), var(--surface-2)`,
+            }}
+          >
+            <span className="absolute inset-0 flex items-center justify-center font-mono text-[11px] tracking-[0.08em] text-white/95">
+              {Math.round(c)}
+            </span>
+            {isAnomaly && (
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--sev-critical)] ring-2 ring-[var(--bg)]" />
+            )}
+            <span className="absolute bottom-0 inset-x-0 px-1 py-0.5 font-mono text-[8px] truncate text-white/65 bg-black/35">
+              {p.panelId}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function CarbonLedger({ annualLossKwhPerKw }: { annualLossKwhPerKw: number }) {
+  // Per-kW figures. 0.4 kg CO2 / kWh ≈ avg grid mix (IEA-ish).
+  const kgCo2PerKwYear = annualLossKwhPerKw * 0.4;
+  // 100km in a small EV ≈ 15 kWh ≈ 6 kg CO2 if grid-charged. Rough analogy:
+  const equivKmEv = (kgCo2PerKwYear / 0.06).toFixed(0);
+  return (
+    <div>
+      <div className="tick mb-3">Carbon ledger · per installed kW · annual</div>
+      <div className="grid grid-cols-2 gap-5">
+        <div>
+          <div className="font-serif text-[34px] leading-none" style={{ color: "var(--accent-2)" }}>
+            <CountUp to={Math.round(kgCo2PerKwYear)} /> kg
+          </div>
+          <div className="font-mono text-[11px] text-[var(--fg-mute)] mt-2 leading-snug">
+            CO₂ avoidance lost to current defects (grid factor 0.40 kg/kWh)
+          </div>
+        </div>
+        <div>
+          <div className="font-serif text-[34px] leading-none">
+            <CountUp to={Number(equivKmEv)} /> km
+          </div>
+          <div className="font-mono text-[11px] text-[var(--fg-mute)] mt-2 leading-snug">
+            equivalent driving emissions a small EV could&apos;ve covered
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

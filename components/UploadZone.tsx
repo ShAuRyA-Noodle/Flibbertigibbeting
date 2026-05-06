@@ -3,8 +3,10 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
-import { ImagePlus, X, FileImage } from "lucide-react";
+import { ImagePlus, X, FileImage, Camera, Film, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WebcamCapture } from "./WebcamCapture";
+import { extractFrames } from "@/lib/videoFrames";
 
 export type StagedFile = {
   id: string;
@@ -24,11 +26,13 @@ export function UploadZone({
   busy: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const [webcamOpen, setWebcamOpen] = useState(false);
+  const [frameCount, setFrameCount] = useState(8);
+  const [extracting, setExtracting] = useState<{ done: number; total: number } | null>(null);
 
-  const onDrop = useCallback(
-    (accepted: File[]) => {
-      setError(null);
-      const next: StagedFile[] = accepted.slice(0, 24).map((file) => ({
+  const stage = useCallback(
+    (incoming: File[]) => {
+      const next: StagedFile[] = incoming.slice(0, 24).map((file) => ({
         id: `${file.name}-${file.size}-${Math.random().toString(36).slice(2, 7)}`,
         file,
         previewUrl: URL.createObjectURL(file),
@@ -39,6 +43,41 @@ export function UploadZone({
     [files, setFiles]
   );
 
+  const handleVideo = useCallback(
+    async (video: File) => {
+      setError(null);
+      setExtracting({ done: 0, total: frameCount });
+      try {
+        const frames = await extractFrames(video, {
+          frameCount,
+          onProgress: (i, total) => setExtracting({ done: i, total }),
+        });
+        stage(frames);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Frame extraction failed");
+      } finally {
+        setExtracting(null);
+      }
+    },
+    [frameCount, stage]
+  );
+
+  const onDrop = useCallback(
+    (accepted: File[]) => {
+      setError(null);
+      const videos: File[] = [];
+      const images: File[] = [];
+      for (const f of accepted) {
+        if (f.type.startsWith("video/")) videos.push(f);
+        else images.push(f);
+      }
+      if (images.length) stage(images);
+      // Take first video; ignore additional videos to keep flow predictable
+      if (videos.length > 0) handleVideo(videos[0]);
+    },
+    [stage, handleVideo]
+  );
+
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     accept: {
@@ -47,8 +86,11 @@ export function UploadZone({
       "image/webp": [".webp"],
       "image/heic": [".heic"],
       "image/heif": [".heif"],
+      "video/mp4": [".mp4", ".m4v"],
+      "video/quicktime": [".mov"],
+      "video/webm": [".webm"],
     },
-    maxSize: 12 * 1024 * 1024,
+    maxSize: 60 * 1024 * 1024,
     multiple: true,
     noClick: true,
     onDropRejected: (rej) => {
@@ -86,14 +128,54 @@ export function UploadZone({
           JPEG · PNG · WebP · HEIC up to 12&nbsp;MB. Single shot or full fleet, up to 24 panels per run.
         </p>
 
-        <div className="mt-7 flex items-center justify-center gap-3">
+        <div className="mt-7 flex items-center justify-center gap-3 flex-wrap">
           <button type="button" onClick={open} className="btn-primary">
             Choose files
+          </button>
+          <button
+            type="button"
+            onClick={() => setWebcamOpen(true)}
+            className="btn-ghost inline-flex items-center gap-2"
+          >
+            <Camera size={14} className="text-[var(--accent)]" />
+            Webcam
           </button>
           <span className="text-[var(--fg-mute)] text-sm">
             or drag &amp; drop · <span className="kbd">⌘V</span> to paste
           </span>
         </div>
+
+        <div className="mt-5 flex items-center justify-center gap-3 flex-wrap text-[12.5px] text-[var(--fg-mute)]">
+          <span className="font-mono inline-flex items-center gap-2">
+            <Film size={12} className="text-[var(--accent)]" />
+            Or drop a flyover MP4 / MOV / WebM —
+          </span>
+          <label className="font-mono inline-flex items-center gap-2">
+            sample
+            <select
+              value={frameCount}
+              onChange={(e) => setFrameCount(Number(e.target.value))}
+              className="bg-[var(--surface-2)] border hairline-strong rounded-md px-2 py-1 text-[var(--fg)] text-[12px]"
+              style={{ color: "var(--fg)" }}
+            >
+              {[4, 6, 8, 12, 16].map((n) => (
+                <option key={n} value={n} style={{ background: "var(--surface)", color: "var(--fg)" }}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            frames
+          </label>
+        </div>
+
+        {extracting && (
+          <div className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--surface-2)] border hairline-strong">
+            <Loader2 size={13} className="animate-spin text-[var(--accent)]" />
+            <span className="font-mono text-[12px] text-[var(--fg-dim)]">
+              extracting frame {extracting.done}/{extracting.total}
+            </span>
+          </div>
+        )}
 
         {error && (
           <div className="mt-6 inline-block severity-pill critical">{error}</div>
@@ -157,6 +239,12 @@ export function UploadZone({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <WebcamCapture
+        open={webcamOpen}
+        onClose={() => setWebcamOpen(false)}
+        onConfirm={(captured) => stage(captured)}
+      />
     </div>
   );
 }

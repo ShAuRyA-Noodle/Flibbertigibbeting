@@ -3,6 +3,11 @@ import { z } from "zod";
 export const SeverityEnum = z.enum(["low", "medium", "high", "critical"]);
 export type Severity = z.infer<typeof SeverityEnum>;
 
+export const BBoxSchema = z
+  .tuple([z.number(), z.number(), z.number(), z.number()])
+  .describe("Normalized [ymin, xmin, ymax, xmax] in 0-1 space relative to the parent image");
+export type BBox = z.infer<typeof BBoxSchema>;
+
 export const DefectSchema = z.object({
   type: z.string().describe("e.g. microcrack, hotspot, soiling, delamination, corrosion, snail-trail, shading, bird-drop, vegetation, encapsulant-yellowing, junction-box-damage, frame-damage, glass-breakage, PID"),
   severity: SeverityEnum,
@@ -10,6 +15,7 @@ export const DefectSchema = z.object({
   confidence: z.number().min(0).max(1),
   estimatedEfficiencyLoss: z.number().min(0).max(100).describe("Percent loss attributable to this defect"),
   notes: z.string().optional(),
+  bbox: BBoxSchema.optional().describe("Bounding box of this defect in the panel image"),
 });
 export type Defect = z.infer<typeof DefectSchema>;
 
@@ -27,6 +33,15 @@ export const PanelAnalysisSchema = z.object({
   immediateActions: z.array(z.string()),
   imageQuality: z.enum(["poor", "fair", "good", "excellent"]),
   confidence: z.number().min(0).max(1),
+
+  /** When this panel was extracted from a larger source image, the bbox in the original. */
+  sourceBBox: BBoxSchema.optional(),
+  /** Original (un-cropped) source filename. Equals fileName when not split. */
+  sourceFileName: z.string().optional(),
+  /** index inside the source image when multi-panel-split */
+  sourceIndex: z.number().int().nonnegative().optional(),
+  /** data URL of the (possibly cropped) image used for analysis, returned to client for overlays */
+  imageDataUrl: z.string().optional(),
 });
 export type PanelAnalysis = z.infer<typeof PanelAnalysisSchema>;
 
