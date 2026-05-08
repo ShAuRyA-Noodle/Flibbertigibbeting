@@ -1,7 +1,26 @@
 import { NextRequest } from "next/server";
-import { analyzePanelImage, detectPanels, type DetectedPanel } from "@/lib/gemini";
+import { createHash, randomUUID } from "node:crypto";
+import {
+  analyzePanelImageWithMeta,
+  detectPanelsWithMeta,
+  gatePanelImageWithMeta,
+  GATE_SYSTEM,
+  GATE_USER,
+  type DetectedPanel,
+} from "@/lib/gemini";
 import { synthesizeReport } from "@/lib/groq";
 import { cropFromBBox, normalizeUpload, bufferToDataUrl } from "@/lib/imageCrop";
+import type { ExifMeta } from "@/lib/exif";
+import { withAudit, hashJson } from "@/lib/auditLog";
+import { MODELS, modelVersion, payloadHash } from "@/lib/models";
+import {
+  VISION_SYSTEM,
+  VISION_USER,
+  DETECT_SYSTEM,
+  DETECT_USER,
+  SYNTHESIS_SYSTEM,
+  SYNTHESIS_USER,
+} from "@/lib/prompts";
 import type { PanelAnalysis } from "@/lib/schema";
 
 export const runtime = "nodejs";
@@ -10,6 +29,12 @@ export const maxDuration = 300;
 const MAX_FILES = 24;
 const MAX_BYTES = 12 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+
+const GATE_REJECT_THRESHOLD = 0.55;
+
+function sha256(buf: Buffer): string {
+  return createHash("sha256").update(buf).digest("hex");
+}
 
 export async function POST(req: NextRequest) {
   const form = await req.formData().catch(() => null);
@@ -24,12 +49,14 @@ export async function POST(req: NextRequest) {
     if (f.size > MAX_BYTES) return jsonError(400, `File too large: ${f.name}`);
   }
 
+  const inspectionId = "insp_" + randomUUID().slice(0, 14);
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const enc = new TextEncoder();
       const send = (obj: unknown) => controller.enqueue(enc.encode(JSON.stringify(obj) + "\n"));
 
-      send({ type: "start", count: files.length });
+      send({ type: "start", count: files.length, inspectionId });
 
       const results: PanelAnalysis[] = [];
       const errors: { fileName: string; error: string }[] = [];
@@ -43,14 +70,21 @@ export async function POST(req: NextRequest) {
         buffer: Buffer;
         mimeType: string;
         imageDataUrl?: string; // data URL only for cropped subimages (originals held by client)
+        exif: ExifMeta;
       };
       const jobs: Job[] = [];
 
-      // === Phase 1: detection (sequential per file, fast Gemini call) ===
+      // === Phase 1: per-file gate + detection ===
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         send({ type: "progress", fileName: file.name, status: "detecting", index: i });
-        let normalized: { buffer: Buffer; mimeType: string; width: number; height: number };
+        let normalized: {
+          buffer: Buffer;
+          mimeType: string;
+          width: number;
+          height: number;
+          exif: ExifMeta;
+        };
         try {
           const raw = Buffer.from(await file.arrayBuffer());
           normalized = await normalizeUpload(raw, file.type);
@@ -61,14 +95,93 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
+        const fileSha = sha256(normalized.buffer);
+
+        // === Step 1.5: panel-gate preflight ===
+        let gateOk = true;
+        try {
+          const gateRef = modelVersion(
+            "panel-gate",
+            "google",
+            MODELS.visionPrimary(),
+            GATE_SYSTEM,
+            GATE_USER
+          );
+          const gate = await withAudit(
+            {
+              orgId: null,
+              userId: null,
+              action: "vision.gate",
+              targetType: "inspection",
+              targetId: inspectionId,
+              payloadHash: hashJson({ fileName: file.name, sha256: fileSha }),
+              modelVersionId: gateRef.id,
+              meta: { fileName: file.name },
+            },
+            () => gatePanelImageWithMeta(normalized.buffer, normalized.mimeType)
+          );
+
+          if (
+            gate.data.isSolarPanel === false &&
+            gate.data.confidence >= GATE_REJECT_THRESHOLD
+          ) {
+            gateOk = false;
+            const reasonShort = gate.data.reason || "image is not a solar panel";
+            errors.push({
+              fileName: file.name,
+              error: `Not a solar panel: ${reasonShort}`,
+            });
+            send({
+              type: "rejected",
+              fileName: file.name,
+              reason: reasonShort,
+              imageDescription: gate.data.imageDescription,
+              confidence: gate.data.confidence,
+            });
+            continue;
+          }
+        } catch (e) {
+          // Gate is best-effort. On error, give benefit of the doubt and proceed.
+          const msg = e instanceof Error ? e.message : String(e);
+          send({ type: "gate_warn", fileName: file.name, message: msg });
+        }
+
+        if (!gateOk) continue;
+
+        // === Detection ===
         let detected: DetectedPanel[] = [];
         try {
-          detected = await detectPanels(normalized.buffer, normalized.mimeType);
+          const detectRef = modelVersion(
+            "detect",
+            "google",
+            MODELS.visionPrimary(),
+            DETECT_SYSTEM,
+            DETECT_USER
+          );
+          const detRes = await withAudit(
+            {
+              orgId: null,
+              userId: null,
+              action: "vision.detect",
+              targetType: "inspection",
+              targetId: inspectionId,
+              payloadHash: hashJson({ fileName: file.name, sha256: fileSha }),
+              modelVersionId: detectRef.id,
+              meta: { fileName: file.name },
+            },
+            () => detectPanelsWithMeta(normalized.buffer, normalized.mimeType)
+          );
+          detected = detRes.data;
         } catch (e) {
           // detection failure is non-fatal; we fall back to whole-image
           const msg = e instanceof Error ? e.message : String(e);
           send({ type: "detect_warn", fileName: file.name, message: msg });
         }
+
+        const gpsForEvent =
+          normalized.exif.lat != null && normalized.exif.lon != null
+            ? { lat: normalized.exif.lat, lon: normalized.exif.lon }
+            : null;
 
         send({
           type: "detected",
@@ -78,6 +191,7 @@ export async function POST(req: NextRequest) {
           panels: detected.map((d, idx) => ({ index: idx, bbox: d.bbox, confidence: d.confidence })),
           width: normalized.width,
           height: normalized.height,
+          gps: gpsForEvent,
         });
 
         if (detected.length >= 2) {
@@ -93,6 +207,7 @@ export async function POST(req: NextRequest) {
                 buffer: crop.buffer,
                 mimeType: crop.mimeType,
                 imageDataUrl: bufferToDataUrl(crop.buffer, crop.mimeType),
+                exif: normalized.exif,
               });
             } catch (e) {
               const msg = e instanceof Error ? e.message : String(e);
@@ -107,6 +222,7 @@ export async function POST(req: NextRequest) {
             sourceIndex: 0,
             buffer: normalized.buffer,
             mimeType: normalized.mimeType,
+            exif: normalized.exif,
           });
         }
       }
@@ -144,12 +260,34 @@ export async function POST(req: NextRequest) {
             index: i,
           });
           try {
-            const panel = await analyzePanelImage(j.buffer, j.mimeType, jobLabel);
+            const cropSha = sha256(j.buffer);
+            const analyzeRef = modelVersion(
+              "vision",
+              "google",
+              MODELS.visionPrimary(),
+              VISION_SYSTEM,
+              VISION_USER(jobLabel)
+            );
+            const out = await withAudit(
+              {
+                orgId: null,
+                userId: null,
+                action: "vision.analyze",
+                targetType: "inspection",
+                targetId: inspectionId,
+                payloadHash: hashJson({ panelLabel: jobLabel, sha256: cropSha }),
+                modelVersionId: analyzeRef.id,
+                meta: { fileName: jobLabel, sourceFileName: j.sourceFileName },
+              },
+              () => analyzePanelImageWithMeta(j.buffer, j.mimeType, jobLabel)
+            );
+            const panel = out.data;
             // Carry source provenance so client can route to the right thumbnail/overlay
             panel.sourceFileName = j.sourceFileName;
             panel.sourceIndex = j.sourceIndex;
             panel.sourceBBox = j.sourceBBox;
             panel.imageDataUrl = j.imageDataUrl; // only for cropped panels
+            panel.exif = j.exif;
             results.push(panel);
             send({ type: "panel", data: panel });
           } catch (e) {
@@ -169,7 +307,26 @@ export async function POST(req: NextRequest) {
 
       send({ type: "synthesizing" });
       try {
-        const report = await synthesizeReport(results);
+        const synthesisRef = modelVersion(
+          "synthesis",
+          "groq",
+          MODELS.synthesis(),
+          SYNTHESIS_SYSTEM,
+          SYNTHESIS_USER("<panels>")
+        );
+        const report = await withAudit(
+          {
+            orgId: null,
+            userId: null,
+            action: "synthesis.report",
+            targetType: "inspection",
+            targetId: inspectionId,
+            payloadHash: payloadHash(results),
+            modelVersionId: synthesisRef.id,
+            meta: { panelCount: results.length },
+          },
+          () => synthesizeReport(results)
+        );
         send({
           type: "report",
           data: {

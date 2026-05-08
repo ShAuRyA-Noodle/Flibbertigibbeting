@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Download, AlertTriangle, CheckCircle2, Compass, Sparkles, Layers, Ruler, Activity, Crosshair, ImageDown, Loader2, History } from "lucide-react";
+import { X, Download, AlertTriangle, CheckCircle2, Compass, Sparkles, Layers, Ruler, Activity, Crosshair, ImageDown, Loader2, History, MapPin, Clock, Camera, ExternalLink } from "lucide-react";
 import type { PanelAnalysis } from "@/lib/schema";
 import { cn } from "@/lib/utils";
 import { CountUp } from "./CountUp";
@@ -369,6 +369,8 @@ function SheetBody({
             </div>
           </div>
         </Section>
+
+        <CaptureMetadataSection panel={panel} />
       </div>
 
       <DefectExplainModal
@@ -438,6 +440,80 @@ function BarRow({ label, value, suffix }: { label: string; value: number; suffix
       <div className="bar bar-lg"><span style={{ width: `${Math.max(0, Math.min(100, value))}%` }} /></div>
     </div>
   );
+}
+
+function CaptureMetadataSection({ panel }: { panel: PanelAnalysis }) {
+  const exif = panel.exif;
+  if (!exif) return null;
+  const hasGps = exif.lat != null && exif.lon != null;
+  if (!hasGps) return null;
+
+  const lat = exif.lat as number;
+  const lon = exif.lon as number;
+  const mapsUrl = `https://www.google.com/maps?q=${lat},${lon}`;
+
+  const hasDevice = !!(exif.make || exif.model);
+  const deviceLabel = [exif.make, exif.model].filter(Boolean).join(" ").trim();
+
+  const hasTime = exif.takenAt != null;
+  const timeLabel = hasTime ? formatTakenAt(exif.takenAt as number) : null;
+
+  return (
+    <Section title="Capture metadata" tick="EXIF">
+      <div className="card p-5 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-2 md:gap-4 items-baseline">
+          <div className="tick flex items-center gap-1.5">
+            <MapPin size={11} /> GPS
+          </div>
+          <div className="body-md text-[var(--fg)] flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="font-mono text-[13px]">{formatLatLon(lat, lon)}</span>
+            {exif.altitudeM != null && (
+              <span className="text-[var(--fg-mute)]">· alt {Math.round(exif.altitudeM)} m</span>
+            )}
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[var(--accent)] hover:underline"
+            >
+              open in Google Maps <ExternalLink size={11} />
+            </a>
+          </div>
+        </div>
+
+        {hasTime && timeLabel && (
+          <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-2 md:gap-4 items-baseline">
+            <div className="tick flex items-center gap-1.5">
+              <Clock size={11} /> Captured
+            </div>
+            <div className="body-md text-[var(--fg)] font-mono text-[13px]">{timeLabel}</div>
+          </div>
+        )}
+
+        {hasDevice && deviceLabel && (
+          <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-2 md:gap-4 items-baseline">
+            <div className="tick flex items-center gap-1.5">
+              <Camera size={11} /> Device
+            </div>
+            <div className="body-md text-[var(--fg)]">{deviceLabel}</div>
+          </div>
+        )}
+      </div>
+    </Section>
+  );
+}
+
+function formatLatLon(lat: number, lon: number): string {
+  const ns = lat >= 0 ? "N" : "S";
+  const ew = lon >= 0 ? "E" : "W";
+  return `${Math.abs(lat).toFixed(4)}°${ns}, ${Math.abs(lon).toFixed(4)}°${ew}`;
+}
+
+function formatTakenAt(ms: number): string {
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 function scoreColor(s: number) {

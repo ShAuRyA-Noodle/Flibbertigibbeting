@@ -27,6 +27,9 @@ export function SolpopApp() {
   const [pending, setPending] = useState<Record<string, Pending>>({});
   const [panels, setPanels] = useState<PanelAnalysis[]>([]);
   const [detected, setDetected] = useState<Record<string, DetectedSource>>({});
+  const [rejected, setRejected] = useState<
+    Record<string, { reason: string; imageDescription: string; confidence: number }>
+  >({});
   const [report, setReport] = useState<FullAnalysis | null>(null);
   const [topError, setTopError] = useState<string | null>(null);
   const [openPanelId, setOpenPanelId] = useState<string | null>(null);
@@ -89,6 +92,7 @@ export function SolpopApp() {
     setPending({});
     setPanels([]);
     setDetected({});
+    setRejected({});
     setReport(null);
     setTopError(null);
     setSavedSessionId(null);
@@ -100,6 +104,7 @@ export function SolpopApp() {
     setReport(null);
     setPanels([]);
     setDetected({});
+    setRejected({});
     setTopError(null);
     setSavedSessionId(null);
     const initial: Record<string, Pending> = {};
@@ -185,6 +190,25 @@ export function SolpopApp() {
           setPending((p) => ({
             ...p,
             [fileName]: { fileName, status: "failed", error: String(evt.error ?? "Failed") },
+          }));
+          break;
+        }
+        case "rejected": {
+          const fileName = String(evt.fileName);
+          const reason = String(evt.reason ?? "Not a solar panel");
+          const imageDescription = String(evt.imageDescription ?? "");
+          const confidence = Number(evt.confidence ?? 0);
+          setPending((p) => ({
+            ...p,
+            [fileName]: {
+              fileName,
+              status: "failed",
+              error: `Not a solar panel: ${reason}`,
+            },
+          }));
+          setRejected((r) => ({
+            ...r,
+            [fileName]: { reason, imageDescription, confidence },
           }));
           break;
         }
@@ -384,6 +408,21 @@ export function SolpopApp() {
             >
               <div className="severity-pill critical mb-2">Error</div>
               <p className="text-[var(--fg-dim)] text-[14px]">{topError}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {Object.keys(rejected).length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="card p-4 border-[rgba(255,176,32,0.4)]"
+            >
+              <p className="text-[var(--fg-dim)] text-[14px]">
+                {Object.keys(rejected).length} file(s) skipped — not solar panels.
+              </p>
             </motion.div>
           )}
         </AnimatePresence>

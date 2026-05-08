@@ -1,7 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
+import { z } from "zod";
 import { PanelAnalysisSchema, type PanelAnalysis, type BBox } from "./schema";
 import { VISION_SYSTEM, VISION_USER, DETECT_SYSTEM, DETECT_USER } from "./prompts";
 import { uid } from "./utils";
+import { normalizeUpload } from "./imageCrop";
 
 const apiKey = process.env.GEMINI_API_KEY!;
 const primaryModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -140,11 +142,11 @@ async function callVisionModel(
   return res.text ?? "";
 }
 
-export async function analyzePanelImage(
+export async function analyzePanelImageWithMeta(
   buffer: Buffer,
   mimeType: string,
   fileName: string
-): Promise<PanelAnalysis> {
+): Promise<{ data: PanelAnalysis; modelName: string }> {
   const b64 = buffer.toString("base64");
   const candidates = [primaryModel, ...FALLBACK_MODELS.filter((m) => m !== primaryModel)];
 
@@ -171,7 +173,7 @@ export async function analyzePanelImage(
       }
 
       const validated = PanelAnalysisSchema.parse(parsed);
-      return validated;
+      return { data: validated, modelName: model };
     } catch (e) {
       lastErr = e;
       // If we ran out of quota even on this model, the next fallback is likely also exhausted.
@@ -184,6 +186,15 @@ export async function analyzePanelImage(
       lastErr instanceof Error ? lastErr.message : String(lastErr)
     }`
   );
+}
+
+export async function analyzePanelImage(
+  buffer: Buffer,
+  mimeType: string,
+  fileName: string
+): Promise<PanelAnalysis> {
+  const { data } = await analyzePanelImageWithMeta(buffer, mimeType, fileName);
+  return data;
 }
 
 // =============================================================================
@@ -213,10 +224,10 @@ async function callDetectModel(model: string, b64: string, mimeType: string): Pr
   return res.text ?? "";
 }
 
-export async function detectPanels(
+export async function detectPanelsWithMeta(
   buffer: Buffer,
   mimeType: string
-): Promise<DetectedPanel[]> {
+): Promise<{ data: DetectedPanel[]; modelName: string | null }> {
   const b64 = buffer.toString("base64");
   const candidates = [primaryModel, ...FALLBACK_MODELS.filter((m) => m !== primaryModel)];
 
@@ -227,7 +238,7 @@ export async function detectPanels(
       const parsed = safeParse<{
         panels?: Array<{ box_2d?: unknown; bbox?: unknown; confidence?: number }>;
       }>(text);
-      if (!parsed || !Array.isArray(parsed.panels)) return [];
+      if (!parsed || !Array.isArray(parsed.panels)) return { data: [], modelName: model };
       const out: DetectedPanel[] = [];
       for (const p of parsed.panels) {
         const raw = (p as { box_2d?: unknown; bbox?: unknown }).box_2d ?? (p as { bbox?: unknown }).bbox;
@@ -252,7 +263,7 @@ export async function detectPanels(
       if (giant && filtered.length > 1) {
         filtered = filtered.filter((b) => b !== giant);
       }
-      return filtered;
+      return { data: filtered, modelName: model };
     } catch (e) {
       lastErr = e;
       continue;
@@ -260,5 +271,108 @@ export async function detectPanels(
   }
   // Detection failed across all models — caller falls back to whole-image analysis
   console.error("detectPanels failed:", lastErr);
-  return [];
+  return { data: [], modelName: null };
+}
+
+export async function detectPanels(
+  buffer: Buffer,
+  mimeType: string
+): Promise<DetectedPanel[]> {
+  const { data } = await detectPanelsWithMeta(buffer, mimeType);
+  return data;
+}
+
+// =============================================================================
+// Panel-gate preflight classifier
+// =============================================================================
+
+export const GATE_SYSTEM = `You are a vision classifier. Reply with strict JSON: { isSolarPanel: boolean, confidence: 0..1, reason: string, imageDescription: string }. A solar panel is a photovoltaic module with a visible cell grid (mono/poly/thin-film) — NOT a window, glass roof, screen, mirror, or anything tile/grid that merely resembles cells. If unsure, set isSolarPanel=false.`;
+
+export const GATE_USER = `Classify the image. Return ONLY the JSON object — no prose, no markdown.
+
+Schema:
+{
+  "isSolarPanel": boolean,
+  "confidence": number,        // 0..1
+  "reason": string,            // one short sentence
+  "imageDescription": string   // one short sentence describing what you see
+}`;
+
+const GateResultSchema = z.object({
+  isSolarPanel: z.boolean(),
+  confidence: z.number().min(0).max(1),
+  reason: z.string(),
+  imageDescription: z.string(),
+});
+
+export type PanelGateResult = z.infer<typeof GateResultSchema>;
+
+async function callGateModel(model: string, b64: string, mimeType: string): Promise<string> {
+  const res = await ai.models.generateContent({
+    model,
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { text: GATE_SYSTEM },
+          { inlineData: { mimeType, data: b64 } },
+          { text: GATE_USER },
+        ],
+      },
+    ],
+    config: {
+      responseMimeType: "application/json",
+      temperature: 0.1,
+    },
+  });
+  return res.text ?? "";
+}
+
+const GATE_FALLBACK: PanelGateResult = {
+  isSolarPanel: false,
+  confidence: 0,
+  reason: "classifier output unparseable",
+  imageDescription: "",
+};
+
+export async function gatePanelImageWithMeta(
+  buffer: Buffer,
+  mimeType: string
+): Promise<{ data: PanelGateResult; modelName: string | null }> {
+  // Cheap preflight: shrink to 768px long edge
+  const small = await normalizeUpload(buffer, mimeType, { maxLongEdge: 768, quality: 82 });
+  const b64 = small.buffer.toString("base64");
+  const candidates = [primaryModel, ...FALLBACK_MODELS.filter((m) => m !== primaryModel)];
+
+  let lastErr: unknown;
+  for (const model of candidates) {
+    try {
+      const text = await withRateLimitRetry(() => callGateModel(model, b64, small.mimeType));
+      const parsed = safeParse<unknown>(text);
+      if (!parsed) {
+        // Unparseable on this model — try next candidate
+        lastErr = new Error("Gate response not parseable JSON");
+        continue;
+      }
+      const validated = GateResultSchema.safeParse(parsed);
+      if (!validated.success) {
+        lastErr = validated.error;
+        continue;
+      }
+      return { data: validated.data, modelName: model };
+    } catch (e) {
+      lastErr = e;
+      continue;
+    }
+  }
+  console.error("gatePanelImage failed:", lastErr);
+  return { data: GATE_FALLBACK, modelName: null };
+}
+
+export async function gatePanelImage(
+  buffer: Buffer,
+  mimeType: string
+): Promise<PanelGateResult> {
+  const { data } = await gatePanelImageWithMeta(buffer, mimeType);
+  return data;
 }

@@ -8,6 +8,26 @@ export const BBoxSchema = z
   .describe("Normalized [ymin, xmin, ymax, xmax] in 0-1 space relative to the parent image");
 export type BBox = z.infer<typeof BBoxSchema>;
 
+/**
+ * EXIF metadata extracted from the originally uploaded image. Mirrors
+ * `lib/exif.ts#ExifMeta` and is attached to every PanelAnalysis the
+ * pipeline emits so the GIS map view (Phase 2.2) can render module pins.
+ */
+export const ExifMetaSchema = z.object({
+  lat: z.number().nullable(),
+  lon: z.number().nullable(),
+  altitudeM: z.number().nullable(),
+  headingDeg: z.number().nullable(),
+  takenAt: z.number().nullable(),
+  make: z.string().nullable(),
+  model: z.string().nullable(),
+  exifWidth: z.number().nullable(),
+  exifHeight: z.number().nullable(),
+  orientation: z.number().nullable(),
+  exifHash: z.string().nullable(),
+});
+export type ExifMetaT = z.infer<typeof ExifMetaSchema>;
+
 export const DefectSchema = z.object({
   type: z.string().describe("e.g. microcrack, hotspot, soiling, delamination, corrosion, snail-trail, shading, bird-drop, vegetation, encapsulant-yellowing, junction-box-damage, frame-damage, glass-breakage, PID"),
   severity: SeverityEnum,
@@ -42,6 +62,9 @@ export const PanelAnalysisSchema = z.object({
   sourceIndex: z.number().int().nonnegative().optional(),
   /** data URL of the (possibly cropped) image used for analysis, returned to client for overlays */
   imageDataUrl: z.string().optional(),
+
+  /** EXIF metadata from the source upload (GPS, capture time, device). Optional for backwards compat. */
+  exif: ExifMetaSchema.optional(),
 });
 export type PanelAnalysis = z.infer<typeof PanelAnalysisSchema>;
 

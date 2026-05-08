@@ -1,5 +1,7 @@
-import { NextRequest } from "next/server";
 import Groq from "groq-sdk";
+import { withRateLimit } from "@/lib/rateLimit";
+import { audit, hashJson } from "@/lib/auditLog";
+import { MODELS, modelVersion } from "@/lib/models";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -28,7 +30,7 @@ function jsonError(status: number, message: string) {
   return new Response(JSON.stringify({ error: message }), { status, headers: { "Content-Type": "application/json" } });
 }
 
-export async function POST(req: NextRequest) {
+async function handler(req: Request): Promise<Response> {
   let body: { defectType?: string; severity?: string } | null = null;
   try {
     body = await req.json();
@@ -37,15 +39,36 @@ export async function POST(req: NextRequest) {
   }
   const defectType = (body?.defectType ?? "").trim();
   if (!defectType) return jsonError(400, "defectType required");
+  const severity = body?.severity;
 
   const userMsg = `Defect type: "${defectType}"${
-    body?.severity ? ` (severity: ${body.severity})` : ""
+    severity ? ` (severity: ${severity})` : ""
   }. Educate a non-expert solar panel owner.`;
+
+  const mv = modelVersion("explain", "groq", MODELS.synthesis(), SYSTEM);
+  const startPayloadHash = hashJson({ defectType, severity });
+
+  void audit({
+    orgId: null,
+    userId: null,
+    action: "explain.start",
+    targetType: "defect_type",
+    targetId: defectType,
+    payloadHash: startPayloadHash,
+    modelVersionId: mv.id,
+    latencyMs: null,
+    status: "ok",
+    error: null,
+    meta: { defectType, severity: severity ?? null },
+  });
+
+  const t0 = Date.now();
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const enc = new TextEncoder();
       const send = (obj: unknown) => controller.enqueue(enc.encode(JSON.stringify(obj) + "\n"));
+      let errMsg: string | null = null;
       try {
         const completion = await groq.chat.completions.create({
           model,
@@ -64,9 +87,23 @@ export async function POST(req: NextRequest) {
           if (finish) send({ type: "done", reason: finish });
         }
       } catch (e) {
-        send({ type: "error", error: e instanceof Error ? e.message : String(e) });
+        errMsg = e instanceof Error ? e.message : String(e);
+        send({ type: "error", error: errMsg });
       } finally {
         controller.close();
+        void audit({
+          orgId: null,
+          userId: null,
+          action: "explain.complete",
+          targetType: "defect_type",
+          targetId: defectType,
+          payloadHash: startPayloadHash,
+          modelVersionId: mv.id,
+          latencyMs: Date.now() - t0,
+          status: errMsg ? "error" : "ok",
+          error: errMsg,
+          meta: { defectType, severity: severity ?? null },
+        });
       }
     },
   });
@@ -79,3 +116,9 @@ export async function POST(req: NextRequest) {
     },
   });
 }
+
+export const POST = withRateLimit(handler, {
+  bucket: "api.explain",
+  opts: { rate: 0.5, burst: 12 },
+  maxBytes: 256 * 1024,
+});

@@ -1,6 +1,8 @@
-import { NextRequest } from "next/server";
 import { synthesizeReport, type Persona, type SynthLocale } from "@/lib/groq";
 import type { PanelAnalysis } from "@/lib/schema";
+import { withRateLimit } from "@/lib/rateLimit";
+import { withAudit, hashJson } from "@/lib/auditLog";
+import { MODELS, modelVersion } from "@/lib/models";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -15,7 +17,7 @@ function jsonError(status: number, message: string) {
   });
 }
 
-export async function POST(req: NextRequest) {
+async function handler(req: Request): Promise<Response> {
   let body: { panels?: PanelAnalysis[]; persona?: string; locale?: string } | null = null;
   try {
     body = await req.json();
@@ -31,8 +33,27 @@ export async function POST(req: NextRequest) {
   if (!VALID_PERSONA.has(persona)) return jsonError(400, `invalid persona: ${persona}`);
   if (!VALID_LOCALE.has(locale)) return jsonError(400, `invalid locale: ${locale}`);
 
+  const mv = modelVersion(
+    "synthesis",
+    "groq",
+    MODELS.synthesis(),
+    `persona=${persona}|locale=${locale}`
+  );
+
   try {
-    const report = await synthesizeReport(panels, { persona, locale });
+    const report = await withAudit(
+      {
+        orgId: null,
+        userId: null,
+        action: "synthesis.report",
+        targetType: "session",
+        targetId: null,
+        payloadHash: hashJson({ panelCount: panels.length, persona, locale }),
+        modelVersionId: mv.id,
+        meta: { panelCount: panels.length, persona, locale },
+      },
+      () => synthesizeReport(panels, { persona, locale })
+    );
     return new Response(JSON.stringify({ report }), {
       headers: { "Content-Type": "application/json" },
     });
@@ -40,3 +61,9 @@ export async function POST(req: NextRequest) {
     return jsonError(500, e instanceof Error ? e.message : String(e));
   }
 }
+
+export const POST = withRateLimit(handler, {
+  bucket: "api.synthesize",
+  opts: { rate: 0.2, burst: 6 },
+  maxBytes: 8 * 1024 * 1024,
+});

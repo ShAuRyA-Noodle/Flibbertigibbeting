@@ -1,7 +1,9 @@
-import { NextRequest } from "next/server";
 import Groq from "groq-sdk";
 import { CHAT_SYSTEM, buildSessionContext } from "@/lib/chatPrompt";
 import type { FullAnalysis } from "@/lib/schema";
+import { withRateLimit } from "@/lib/rateLimit";
+import { audit, hashJson } from "@/lib/auditLog";
+import { MODELS, modelVersion, shortHash } from "@/lib/models";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -22,7 +24,7 @@ function jsonError(status: number, message: string) {
 
 type ChatRequestBody = { messages?: ClientMessage[]; session?: FullAnalysis };
 
-export async function POST(req: NextRequest) {
+async function handler(req: Request): Promise<Response> {
   let raw: unknown;
   try {
     raw = await req.json();
@@ -39,6 +41,8 @@ export async function POST(req: NextRequest) {
   }
 
   const sessionContext = buildSessionContext(session);
+  const messageCount = body.messages.length;
+  const panelCount = session.panels.length;
 
   const messages = [
     { role: "system" as const, content: CHAT_SYSTEM(sessionContext) },
@@ -48,10 +52,31 @@ export async function POST(req: NextRequest) {
     })),
   ];
 
+  const mv = modelVersion("synthesis", "groq", MODELS.synthesis(), CHAT_SYSTEM(""));
+  const sessionTargetId = shortHash(JSON.stringify(session));
+  const startPayloadHash = hashJson({ messageCount, sessionPanelCount: panelCount });
+
+  void audit({
+    orgId: null,
+    userId: null,
+    action: "chat.start",
+    targetType: "session",
+    targetId: sessionTargetId,
+    payloadHash: startPayloadHash,
+    modelVersionId: mv.id,
+    latencyMs: null,
+    status: "ok",
+    error: null,
+    meta: { messageCount, panelCount },
+  });
+
+  const t0 = Date.now();
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const enc = new TextEncoder();
       const send = (obj: unknown) => controller.enqueue(enc.encode(JSON.stringify(obj) + "\n"));
+      let errMsg: string | null = null;
 
       try {
         const completion = await groq.chat.completions.create({
@@ -68,10 +93,23 @@ export async function POST(req: NextRequest) {
           if (finish) send({ type: "done", reason: finish });
         }
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        send({ type: "error", error: msg });
+        errMsg = e instanceof Error ? e.message : String(e);
+        send({ type: "error", error: errMsg });
       } finally {
         controller.close();
+        void audit({
+          orgId: null,
+          userId: null,
+          action: "chat.complete",
+          targetType: "session",
+          targetId: sessionTargetId,
+          payloadHash: startPayloadHash,
+          modelVersionId: mv.id,
+          latencyMs: Date.now() - t0,
+          status: errMsg ? "error" : "ok",
+          error: errMsg,
+          meta: { messageCount, panelCount },
+        });
       }
     },
   });
@@ -84,3 +122,9 @@ export async function POST(req: NextRequest) {
     },
   });
 }
+
+export const POST = withRateLimit(handler, {
+  bucket: "api.chat",
+  opts: { rate: 1, burst: 20 },
+  maxBytes: 4 * 1024 * 1024,
+});
