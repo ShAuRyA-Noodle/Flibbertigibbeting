@@ -19,5 +19,8 @@ export function severityColor(s: "low" | "medium" | "high" | "critical") {
 }
 
 export function uid() {
-  return Math.random().toString(36).slice(2, 10);
+  // Use crypto.randomUUID() so client-side IDs are not predictable.
+  return (typeof crypto !== "undefined" && crypto.randomUUID)
+    ? crypto.randomUUID().slice(0, 8)
+    : Date.now().toString(36).slice(-8);
 }

@@ -72,5 +72,5 @@ export async function clearSessions() {
 }
 
 export function newSessionId(): string {
-  return `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+  return `s-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
 }

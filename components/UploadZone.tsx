@@ -33,7 +33,7 @@ export function UploadZone({
   const stage = useCallback(
     (incoming: File[]) => {
       const next: StagedFile[] = incoming.slice(0, 24).map((file) => ({
-        id: `${file.name}-${file.size}-${Math.random().toString(36).slice(2, 7)}`,
+        id: `${file.name}-${file.size}-${crypto.randomUUID().slice(0, 8)}`,
         file,
         previewUrl: URL.createObjectURL(file),
       }));

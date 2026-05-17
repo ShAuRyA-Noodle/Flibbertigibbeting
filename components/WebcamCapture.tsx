@@ -124,7 +124,7 @@ export function WebcamCapture({
       (blob) => {
         if (!blob) return;
         const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-        const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+        const id = `${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
         setSnaps((curr) => [...curr, { id, dataUrl, blob }]);
         // shutter flash
         setFlashOn(true);
