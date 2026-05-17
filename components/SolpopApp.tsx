@@ -69,7 +69,7 @@ export function SolpopApp() {
         const fetched = await loadSamplesByIds(ids);
         if (fetched.length === 0) return;
         const staged: StagedFile[] = fetched.map((file) => ({
-          id: `${file.name}-${file.size}-${Math.random().toString(36).slice(2, 7)}`,
+          id: `${file.name}-${file.size}-${crypto.randomUUID().slice(0, 8)}`,
           file,
           previewUrl: URL.createObjectURL(file),
         }));

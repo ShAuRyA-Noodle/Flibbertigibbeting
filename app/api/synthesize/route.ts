@@ -58,7 +58,8 @@ async function handler(req: Request): Promise<Response> {
       headers: { "Content-Type": "application/json" },
     });
   } catch (e) {
-    return jsonError(500, e instanceof Error ? e.message : String(e));
+    console.error("synthesize.route.error", e);
+    return jsonError(500, "internal_error");
   }
 }
 

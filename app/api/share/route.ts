@@ -39,7 +39,8 @@ export async function POST(req: NextRequest) {
   try {
     await writeShare(payload);
   } catch (e) {
-    return jsonError(500, e instanceof Error ? e.message : String(e));
+    console.error("share.route.write_failed", e);
+    return jsonError(500, "internal_error");
   }
   return new Response(JSON.stringify({ id, url: `/r/${id}` }), {
     headers: { "Content-Type": "application/json" },
